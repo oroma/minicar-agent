@@ -38,6 +38,8 @@
 #define STAPSK  ""
 #endif
 
+void drawGraph();
+
 const char *ssid = STASSID;
 const char *password = STAPSK;
 
@@ -93,6 +95,41 @@ void handleNotFound() {
 
   server.send(404, "text/plain", message);
   digitalWrite(led, 0);
+}
+
+void handleConfig() {
+  if (server.hasArg("plain")== false) {
+    server.send(200, "text/plain", "Body not received");
+    return;
+  }
+
+  const size_t capacity = JSON_OBJECT_SIZE(2) + 60;
+  DynamicJsonDocument doc(capacity);
+
+  DeserializationError error = deserializeJson(doc, server.arg("plain"));
+  if (error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
+    return;
+  }
+
+  // { "anglePin": 12, "speedPin": 13 }
+  Serial.println(F("Response:"));
+  Serial.println(doc["anglePin"].as<long>());
+  Serial.println(doc["speedPin"].as<long>());
+  
+  String message = "Body received:\n";
+         message += server.arg("plain");
+         message += "\n";
+
+  server.send(200, "text/plain", "{ 'result': 0, 'request': 'config' }");
+  Serial.println(message);
+}
+
+void handleCommand() {
+}
+
+void handleStatus() {
 }
 
 void setup(void) {
@@ -158,6 +195,11 @@ void setup(void) {
     server.send(200, "text/plain", message);
     Serial.println(message);
   });
+
+  server.on("/config", handleConfig);
+  server.on("/command", handleCommand);
+  server.on("/status", handleStatus);
+
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("HTTP server started");
