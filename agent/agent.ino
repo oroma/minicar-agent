@@ -27,7 +27,7 @@
    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#include <ArduinoJson.h> 
+#include <Arduino_JSON.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
@@ -103,26 +103,38 @@ void handleConfig() {
     return;
   }
 
-  const size_t capacity = JSON_OBJECT_SIZE(2) + 60;
-  DynamicJsonDocument doc(capacity);
-
-  DeserializationError error = deserializeJson(doc, server.arg("plain"));
-  if (error) {
-    Serial.print(F("deserializeJson() failed: "));
-    Serial.println(error.c_str());
+  JSONVar myObject = JSON.parse(server.arg("plain"));
+  if (JSON.typeof(myObject) == "undefined") {
+    Serial.println("Parsing input failed!");
     return;
   }
+  Serial.print("JSON.typeof(myObject) = ");
+  Serial.println(JSON.typeof(myObject)); // prints: object
 
   // { "anglePin": 12, "speedPin": 13 }
-  Serial.println(F("Response:"));
-  Serial.println(doc["anglePin"].as<long>());
-  Serial.println(doc["speedPin"].as<long>());
+  if (myObject.hasOwnProperty("anglePin")) {
+    Serial.print("myObject[\"anglePin\"] = ");
+
+    Serial.println((int) myObject["anglePin"]);
+  }
+
+  if (myObject.hasOwnProperty("speedPin")) {
+    Serial.print("myObject[\"speedPin\"] = ");
+
+    Serial.println((int) myObject["speedPin"]);
+  }
   
   String message = "Body received:\n";
          message += server.arg("plain");
          message += "\n";
+  String res  = "{";
+         res += "\"result\": 0,";
+         res += "\"request\": \"config\",";
+         res += "\"time\": ";
+         res += millis();
+         res += "}";
 
-  server.send(200, "text/plain", "{ 'result': 0, 'request': 'config' }");
+  server.send(200, "text/plain", res);
   Serial.println(message);
 }
 
@@ -161,7 +173,7 @@ void setup(void) {
   server.on("/inline", []() {
     server.send(200, "text/plain", "this works as well");
   });
-
+#if 0
   server.on("/json", []() {
     if (server.hasArg("plain")== false) {
       server.send(200, "text/plain", "Body not received");
@@ -195,7 +207,7 @@ void setup(void) {
     server.send(200, "text/plain", message);
     Serial.println(message);
   });
-
+#endif
   server.on("/config", handleConfig);
   server.on("/command", handleCommand);
   server.on("/status", handleStatus);
