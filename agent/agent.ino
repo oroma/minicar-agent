@@ -139,6 +139,7 @@ void handleConfig() {
 }
 
 void handleCommand() {
+    server.send(200, "text/plain", "Body not received");
 }
 
 void handleStatus() {
