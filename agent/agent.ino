@@ -1,32 +1,3 @@
-/*
-   Copyright (c) 2015, Majenko Technologies
-   All rights reserved.
-
-   Redistribution and use in source and binary forms, with or without modification,
-   are permitted provided that the following conditions are met:
-
- * * Redistributions of source code must retain the above copyright notice, this
-     list of conditions and the following disclaimer.
-
- * * Redistributions in binary form must reproduce the above copyright notice, this
-     list of conditions and the following disclaimer in the documentation and/or
-     other materials provided with the distribution.
-
- * * Neither the name of Majenko Technologies nor the names of its
-     contributors may be used to endorse or promote products derived from
-     this software without specific prior written permission.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
 #include <Arduino_JSON.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
@@ -139,7 +110,58 @@ void handleConfig() {
 }
 
 void handleCommand() {
+  if (server.hasArg("plain")== false) {
     server.send(200, "text/plain", "Body not received");
+    return;
+  }
+
+  JSONVar myObject = JSON.parse(server.arg("plain"));
+  if (JSON.typeof(myObject) == "undefined") {
+    Serial.println("Parsing input failed!");
+    return;
+  }
+  Serial.print("JSON.typeof(myObject) = ");
+  Serial.println(JSON.typeof(myObject)); // prints: object
+
+  // Extract values
+  // { "sensor": "sensor field", "time": 123456789, "data": [0.1, 0.2, 0.3, 0.4] }
+  if (myObject.hasOwnProperty("sensor")) {
+    Serial.print("myObject[\"sensor\"] = ");
+
+    Serial.println((const char*)myObject["sensor"]);
+  }
+
+  if (myObject.hasOwnProperty("time")) {
+    Serial.print("myObject[\"time\"] = ");
+
+    Serial.println((int) myObject["time"]);
+  }
+
+  if (myObject.hasOwnProperty("data")) {
+    JSONVar myArray = JSON.parse(JSON.stringify(myObject["data"]));
+    Serial.print("myObject[\"data\"] = ");
+    for (int i = 0; i < myArray.length(); i++) {
+      JSONVar value = myArray[i];
+      // Serial.println(JSON.typeof(value));
+      Serial.print(value);
+      if (i < (myArray.length() - 1))
+        Serial.print(", ");
+    }
+  }
+  Serial.println();
+  
+  String message = "Body received:\n";
+         message += server.arg("plain");
+         message += "\n";
+  String res  = "{";
+         res += "\"result\": 0,";
+         res += "\"request\": \"command\",";
+         res += "\"time\": ";
+         res += millis();
+         res += "}";
+
+  server.send(200, "text/plain", res);
+  Serial.println(message);
 }
 
 void handleStatus() {
@@ -174,41 +196,7 @@ void setup(void) {
   server.on("/inline", []() {
     server.send(200, "text/plain", "this works as well");
   });
-#if 0
-  server.on("/json", []() {
-    if (server.hasArg("plain")== false) {
-      server.send(200, "text/plain", "Body not received");
-      return;
-    }
-    // Allocate the JSON document
-    // Use arduinojson.org/v6/assistant to compute the capacity.
-    const size_t capacity = JSON_OBJECT_SIZE(3) + JSON_ARRAY_SIZE(4) + 60;
-    DynamicJsonDocument doc(capacity);
 
-    // Parse JSON object
-    DeserializationError error = deserializeJson(doc, server.arg("plain"));
-    if (error) {
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.c_str());
-      return;
-    }
-
-    // Extract values
-    // { "sensor": "sensor field", "time": 123456789, "data": [0.1, 0.2, 0.3, 0.4] }
-    Serial.println(F("Response:"));
-    Serial.println(doc["sensor"].as<char*>());
-    Serial.println(doc["time"].as<long>());
-    Serial.println(doc["data"][0].as<float>(), 6);
-    Serial.println(doc["data"][1].as<float>(), 6);
-    
-    String message = "Body received:\n";
-           message += server.arg("plain");
-           message += "\n";
-
-    server.send(200, "text/plain", message);
-    Serial.println(message);
-  });
-#endif
   server.on("/config", handleConfig);
   server.on("/command", handleCommand);
   server.on("/status", handleStatus);
